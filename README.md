@@ -1,6 +1,8 @@
 # Project factory script
 
-This is a convenvience script I made for personal use, which might be helpful to others. Feel free to adjust it to your needs!
+This is a convenvience script I made for personal use, which might be helpful to others. 
+
+Feel free to adjust it to your needs!
 
 ## Usage:
 
@@ -9,7 +11,10 @@ This is a convenvience script I made for personal use, which might be helpful to
 ```
 
 The script will:
-- create directory `/parent/directory/path/project-name/` and `/parent/directory/path/project-name/project-name/`,
+- create:
+    - `/parent/directory/path/project-name/` directory,
+    - `/parent/directory/path/project-name/project-name/` directory,
+    - `/parent/directory/path/project-name/project-name/__init__.py` file,
 - initialize a git repo,
 - add a .gitignore file,
 - create a pre-commit githook script which runs autoflake, black, flake8 and isort on commited files,
