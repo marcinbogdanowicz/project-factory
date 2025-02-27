@@ -4,7 +4,17 @@ This is a convenvience script I made for personal use, which might be helpful to
 
 Feel free to adjust it to your needs!
 
-## Usage:
+## Prerequisites
+
+- poetry
+- git
+
+VSCode is not required, but the script will create settings.json for VSC. I'm using the following plugins:
+- Black Formatter by Microsoft,
+- Flake8 by Microsoft,
+- isort by Microsoft.
+
+## Usage
 
 ```
 ./factory.sh /parent/directory/path/ project-name
