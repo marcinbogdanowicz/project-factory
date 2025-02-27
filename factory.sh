@@ -154,7 +154,7 @@ sudo chmod +x .githooks/pre-commit
 git config core.hooksPath .githooks
 
 # Poetry setup
-echo "Setting up poetry."
+echo "Setting up poetry env."
 poetry init -n --name="$PROJECT_NAME"
 echo "# $PROJECT_NAME" > README.md
 
