@@ -174,7 +174,7 @@ EOF
 
 if ! sudo -n true 2>/dev/null
 then
-    echo "Superuser authentication is required to make the pre-commit hook executable."
+    echo "Superuser authentication is required for making scripts executable."
     if ! sudo -v
     then
         echo "Authentication failed."
@@ -362,6 +362,16 @@ services:
     command: echo "Please implement the container command!"
 
 EOF
+
+mkdir scripts
+cat <<EOF > scripts/command.sh
+#!/usr/bin/bash
+
+docker compose run --rm -w /app ${PROJECT_NAME} bash -c "\$@"
+
+EOF
+
+chmod +x scripts/command.sh
 fi
 
 # Initial commit

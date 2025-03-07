@@ -54,3 +54,5 @@ Using `--docker` or `-d` flag will create a development docker environment:
 - create a base `Dockerfile.dev`
 - create an empty `entrypoint.sh` (with only `exec "$@"` command)
 - create a `docker-compose.yml` file with a placeholder command and basic setup.
+- create `/parent/directory/path/project-name/scripts/` directory
+- create a `command.sh` convenience script for running commands inside the container.
