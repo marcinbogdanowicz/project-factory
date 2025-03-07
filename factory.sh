@@ -2,8 +2,12 @@
 
 set -e
 
-PROJECT_PATH="$1"
-PROJECT_NAME="$2"
+function show_usage {
+    echo "Usage: $0 project_path project_name"
+    echo "Optional flags:"
+    echo "  -n, --no-commit: Do not make an initial commit."
+    echo "  -d, --docker: Create a docker compose setup."
+}
 
 LINTERS=(
     "autoflake"
@@ -21,12 +25,40 @@ LINTERS=(
     "isort"
 )
 
+PROJECT_PATH="$1"
+PROJECT_NAME="$2"
+
 if [[ -z "$PROJECT_PATH" || -z "$PROJECT_NAME" ]]
 then
-    echo "Usage: $0 -p project_path -n project_name"
-    echo "Both project path and project name are required."
+    echo -e "Missing project_path and project_name arguments!\n"
+    show_usage;
     exit 1
 fi
+
+shift 2
+
+CREATE_DOCKER_SETUP="false"
+LINE_LENGTH="120"
+
+for i in "$@"
+do
+    case $i in
+        -d|--docker)
+        CREATE_DOCKER_SETUP="true"
+        shift
+        ;;
+        -l=*|--line-length=*)
+        LINE_LENGTH="${i#*=}"
+        shift
+        ;;
+        -h|--help)
+        show_usage
+        exit 0
+        ;;
+        *)
+        ;;
+    esac
+done
 
 if [ -e "$PROJECT_PATH/$PROJECT_NAME" ]
 then
@@ -159,14 +191,14 @@ poetry init -n --name="$PROJECT_NAME"
 echo "# $PROJECT_NAME" > README.md
 
 echo "Adding linters."
-cat <<'EOF' >> pyproject.toml
+cat <<EOF >> pyproject.toml
 
 
-[tool.poetry.group.linters]
+[tool.poetry.group.dev]
 optional = true
 
 
-[tool.poetry.group.linters.dependencies]
+[tool.poetry.group.dev.dependencies]
 
 
 [tool.flake8]
@@ -236,25 +268,18 @@ max-complexity = 15
 ban-relative-imports = true
 
 [tool.black]
-line_length = 120
+line_length = ${LINE_LENGTH}
 skip_string_normalization = true
 
 
 [tool.isort]
 profile = 'black'
-line_length = 120
-
-
-[tool.coverage.report]
-exclude_also = [
-    "if TYPE_CHECKING:",
-    ]
-
+line_length = ${LINE_LENGTH}
 
 EOF
 
-poetry add -q --group linters "${LINTERS[@]}"
-poetry install -q --with linters
+poetry add -q --group dev "${LINTERS[@]}"
+poetry install -q --with dev
 
 # VSCode setup
 echo "Creating VSCode settings."
@@ -277,9 +302,67 @@ cat <<EOF > .vscode/settings.json
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.formatOnSave": true
-    }
+    },
+    "editor.rulers": [
+        ${LINE_LENGTH}
+    ],
 }
+
 EOF
+
+# Docker setup
+if [ "$CREATE_DOCKER_SETUP" == "true" ]
+then
+echo "Creating docker setup."
+
+mkdir docker
+
+cat <<'EOF' > docker/entrypoint.sh
+#!/usr/bin/bash
+
+exec "$@"
+
+EOF
+
+cat <<EOF > docker/Dockerfile.dev
+FROM public.ecr.aws/docker/library/python:3.12
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
+
+WORKDIR /app
+
+RUN pip install poetry
+RUN poetry config virtualenvs.create false
+COPY pyproject.toml poetry.lock /app
+RUN poetry install --no-root
+
+COPY ./docker/entrypoint.sh /app
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+EOF
+
+cat <<EOF > .dockerignore
+__pycache__
+.dockerignore
+
+EOF
+
+cat <<EOF > docker-compose.yml
+services:
+  ${PROJECT_NAME}:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - 8000:8000
+    volumes:
+      - ./${PROJECT_NAME}:/app/${PROJECT_NAME}
+    command: echo "Please implement the container command!"
+
+EOF
+fi
 
 # Initial commit
 echo "Making an initial commit."
