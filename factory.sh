@@ -39,6 +39,7 @@ shift 2
 
 CREATE_DOCKER_SETUP="false"
 LINE_LENGTH="120"
+POETRY="false"
 
 for i in "$@"
 do
@@ -49,6 +50,10 @@ do
         ;;
         -l=*|--line-length=*)
         LINE_LENGTH="${i#*=}"
+        shift
+        ;;
+        -p|--poetry)
+        POETRY="true"
         shift
         ;;
         -h|--help)
@@ -68,8 +73,8 @@ fi
 
 # Create project directory
 echo "Creating directories."
-mkdir -p "$PROJECT_PATH/$PROJECT_NAME/$PROJECT_NAME"
-cd "$PROJECT_PATH/$PROJECT_NAME"
+mkdir -p "$PROJECT_PATH/$PROJECT_NAME-project/$PROJECT_NAME"
+cd "$PROJECT_PATH/$PROJECT_NAME-project"
 touch "$PROJECT_NAME/__init__.py"
 
 # Git setup
@@ -84,6 +89,7 @@ a.py
 .coverage
 .vscode
 .env
+venv
 EOF
 
 mkdir .githooks
@@ -185,6 +191,8 @@ sudo chmod +x .githooks/pre-commit
 
 git config core.hooksPath .githooks
 
+if [ $POETRY == "true" ]
+then
 # Poetry setup
 echo "Setting up poetry env."
 poetry init -n --name="$PROJECT_NAME"
@@ -199,6 +207,58 @@ optional = true
 
 
 [tool.poetry.group.dev.dependencies]
+
+
+EOF
+
+poetry add -q --group dev "${LINTERS[@]}"
+poetry install -q --with dev
+
+# VSCode setup
+echo "Creating VSCode settings."
+mkdir .vscode
+
+if [ $POETRY == "true" ]
+then
+  EXECUTABLES_BASE_PATH=$(poetry env info -p)
+else
+  EXECUTABLES_BASE_PATH="$(pwd)/venv"
+fi
+
+cat <<EOF > .vscode/settings.json
+{
+    "python.defaultInterpreterPath": "$EXECUTABLES_BASE_PATH/bin/python",
+    "black-formatter.path": [
+        "$EXECUTABLES_BASE_PATH/bin/black"
+    ],
+    "flake8.path": [
+        "$EXECUTABLES_BASE_PATH/bin/flake8"
+    ],
+    "isort.check": true,
+    "isort.path": [
+        "$EXECUTABLES_BASE_PATH/bin/isort"
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true
+    },
+    "editor.rulers": [
+        ${LINE_LENGTH}
+    ],
+}
+
+EOF
+else
+# Setup venv
+echo "Setting up venv."
+python3 -m venv venv
+source venv/bin/activate
+pip install -q "${LINTERS[@]}"
+pip freeze > requirements.txt
+fi
+
+# Setup linters config
+cat <<EOF >> pyproject.toml
 
 
 [tool.flake8]
@@ -278,38 +338,6 @@ line_length = ${LINE_LENGTH}
 
 EOF
 
-poetry add -q --group dev "${LINTERS[@]}"
-poetry install -q --with dev
-
-# VSCode setup
-echo "Creating VSCode settings."
-mkdir .vscode
-
-POETRY_BASE_PATH=$(poetry env info -p)
-cat <<EOF > .vscode/settings.json
-{
-    "python.defaultInterpreterPath": "$POETRY_BASE_PATH/bin/python",
-    "black-formatter.path": [
-        "$POETRY_BASE_PATH/bin/black"
-    ],
-    "flake8.path": [
-        "$POETRY_BASE_PATH/bin/flake8"
-    ],
-    "isort.check": true,
-    "isort.path": [
-        "$POETRY_BASE_PATH/bin/isort"
-    ],
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter",
-        "editor.formatOnSave": true
-    },
-    "editor.rulers": [
-        ${LINE_LENGTH}
-    ],
-}
-
-EOF
-
 # Docker setup
 if [ "$CREATE_DOCKER_SETUP" == "true" ]
 then
@@ -331,11 +359,24 @@ ENV PYTHONDONTWRITEBYTECODE 1
 
 WORKDIR /app
 
+EOF
+
+if [ $POETRY == "true" ]
+then
+cat <<EOF >> docker/Dockerfile.dev
 RUN pip install poetry
 RUN poetry config virtualenvs.create false
 COPY pyproject.toml poetry.lock /app
 RUN poetry install --no-root
+EOF
+else
+cat <<EOF >> docker/Dockerfile.dev
+COPY requirements.txt /app
+RUN pip install -r requirements.txt
+EOF
+fi
 
+cat <<EOF >> docker/Dockerfile.dev
 COPY ./docker/entrypoint.sh /app
 RUN chmod +x /app/entrypoint.sh
 

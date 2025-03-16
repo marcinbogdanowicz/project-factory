@@ -6,9 +6,9 @@ Feel free to adjust it to your needs!
 
 ## Prerequisites
 
-- poetry
+- poetry (optional)
 - git
-- docker & docker compose
+- docker & docker compose (optional)
 
 VSCode is not required, but the script will create settings.json for VSC. I'm using the following plugins:
 - Black Formatter by Microsoft,
@@ -31,12 +31,19 @@ The script will:
 - initialize a git repo,
 - add a .gitignore file,
 - create a pre-commit githook script which runs autoflake, black, flake8 and isort on commited files,
-- initialize poetry environment,
-- install linters and add their configuration,
+- initialize venv,
+- install linters and add them to requirements.txt
+- and linters configuration,
 - add .vscode settings so that Python, black, flake8 and isort executables from the project are used by VSC plugins,
 - make an initial git commit.
 
 **Additional options**
+
+```
+./factory.sh /parent/directory/path/ project-name --poetry
+```
+
+The `--poetry` or `p` flag will make the script use poetry instead of venv.
 
 ```
 ./factory.sh /parent/directory/path/ project-name --line-length=80
